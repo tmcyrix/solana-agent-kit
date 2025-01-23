@@ -15,6 +15,7 @@ import {
   CreateSingleOptions,
   StoreInitOptions,
 } from "@3land/listings-sdk/dist/types/implementation/implementationTypes";
+import { parseString } from "typedoc/dist/lib/converter/comments/declarationReference";
 
 export class SolanaBalanceTool extends Tool {
   name = "solana_balance";
@@ -2688,6 +2689,540 @@ export class SolanaExecuteProposal2by2Multisig extends Tool {
   }
 }
 
+export class SolanaCreatePriceLockerTool extends Tool {
+  name = "solana_create_price_locker";
+  description = `Create a new Price Locker for the agent based on a name and a required token mint. 
+  The locker is only valid for SPL tokens such as CRAB, BONK etc. A token mint must be specified.
+  After successfully creating a price locker, prompt the user to deposit funds into the newly created price locker.
+
+  Inputs (JSON string):
+  - name: string (required) - Name of the locker.
+  - tokenMint: string (required) - Mint of the SPL token.`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(input: string): Promise<string> {
+    try {
+      const parsedInput = JSON.parse(input);
+
+      // Validate name
+      if (!parsedInput.name) {
+        throw new Error("Name is required");
+      }
+
+      // Validate tokenMint (required)
+      if (!parsedInput.tokenMint || typeof parsedInput.tokenMint !== "string") {
+        throw new Error("tokenMint is required and must be a string");
+      }
+
+      const tokenMint = parsedInput.tokenMint;
+      const tokenType = `SPL Token (${parsedInput.tokenMint})`;
+
+      console.log("Locker name:", parsedInput.name);
+      console.log("Token mint:", tokenMint);
+
+      // Call the createPriceLocker function
+      const signature = await this.solanaKit.createPriceLocker(
+        parsedInput.name,
+        tokenMint,
+      );
+
+      return JSON.stringify({
+        status: "success",
+        signature,
+        name: parsedInput.name,
+        tokenMint,
+        message: `Price Locker for ${tokenType} with the name '${parsedInput.name}' created successfully. You can now deposit funds into it.`,
+      });
+    } catch (error: any) {
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
+export class SolanaGetPriceLockerTool extends Tool {
+  name = "solana_get_all_price_locker";
+  description = `Retrieve a list of price lockers created by the agent using their public key.
+
+  ### **Outputs**
+  For each price locker:
+  - **Locker Name**: Name of the price locker.
+  - **Public Key**: Locker's public key.
+  - **Bank Public Key**: Bank account public key for balance checks.
+  - **Unlockable Locks**: Locks that can be unlocked, with indices.
+  - **Total Locks**: Total number of locks in the locker.
+  
+  ### **Notes**
+  - Locks with "locked" as false are already unlocked and not shown.
+  - Use lock indices to unlock tokens or perform actions.
+  - View details to manage and track price lockers effectively.`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(): Promise<string> {
+    try {
+      // Fetch all price lockers
+      const priceLockers = await this.solanaKit.getPriceLockerList();
+
+      // Process each locker to extract relevant lock information
+      const processedLockers = priceLockers.map(({ publicKey, data }) => {
+        const unlockableLocks = data.locks
+          .map((lock, index) => ({ ...lock, index }))
+          .filter((lock) => lock.locked);
+
+        return {
+          lockerName: data.name,
+          publicKey: publicKey.toBase58(),
+          tokenMint: data.tokenMint.toBase58(),
+          unlockableLocks,
+          totalLocks: data.locks.length,
+        };
+      });
+
+      // Create a summary of the results
+      const lockerSummary = processedLockers
+        .map(
+          (locker) =>
+            `Locker: ${locker.lockerName}\n` +
+            `Public Key: ${locker.publicKey}\n` +
+            `Token Mint: ${locker.tokenMint}\n` +
+            `Total Locks: ${locker.totalLocks}\n` +
+            `Unlockable Locks: ${
+              locker.unlockableLocks.length > 0
+                ? locker.unlockableLocks.map(
+                    (lock) => `Index ${lock.index}, Amount: ${lock.amount}`,
+                  )
+                : "None"
+            }\n`,
+        )
+        .join("\n");
+
+      return JSON.stringify({
+        status: "success",
+        lockers: processedLockers,
+        message: `Here are the price lockers you have created so far:\n\n${lockerSummary}`,
+      });
+    } catch (error: any) {
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
+export class SolanaDepositPriceLockerTool extends Tool {
+  name = "solana_deposit_price_locker";
+  description = `Deposit SPL tokens into a price locker. Provide the locker name and amount. 
+
+    ### Inputs
+    - **name**: (string, required) Name of the price locker.
+    - **amount**: (number, required) Amount to deposit (positive value).
+
+    ### Example Input
+    For SPL token: {"name": "myLocker", "amount": 100}
+
+    ### Notes
+    - The locker must exist.
+    - Amount must match the token's decimal precision.
+    - Deposits exceeding the account balance will fail.
+
+    You can only perform this function if you verified the input of the user.`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(input: string): Promise<string> {
+    try {
+      const parsedInput = JSON.parse(input);
+
+      // Validate locker name
+      if (!parsedInput.name || typeof parsedInput.name !== "string") {
+        throw new Error("Locker name is required and must be a string.");
+      }
+
+      // Validate amount
+      const amount = parseFloat(parsedInput.amount);
+      if (!parsedInput.amount || isNaN(amount) || amount <= 0) {
+        throw new Error("Amount is required and must be a positive number.");
+      }
+
+      // Execute the deposit
+      const signature = await this.solanaKit.depositToPriceLocker(
+        parsedInput.name,
+        amount,
+      );
+
+      // Success response
+      return JSON.stringify({
+        status: "success",
+        signature,
+        locker: parsedInput.name,
+        amount,
+        message: `Successfully deposited ${amount} tokens into the locker '${parsedInput.name}'. You can view the transaction on Solscan: https://solscan.io/tx/${signature}`,
+      });
+    } catch (error: any) {
+      // Error response
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
+export class SolanaWithdrawPriceLockerTool extends Tool {
+  name = "solana_withdraw_funds_from_price_locker";
+  description = `This tool allows an agent to withdraw tokens from one of their available price lockers. The user must provide the locker name and the amount to withdraw.
+
+  ### Inputs
+  The input must be a valid JSON string with the following structure:
+  - **name**: (string, required) - The name of the price locker from which tokens will be withdrawn.
+  - **amount**: (number, required) Amount to deposit (positive value).
+
+  ### Example Input
+  For SPL token: {"name": "myLocker", "amount": 100}
+
+  ### Notes
+  - The locker must exist.
+  - Amount must match the token's decimal precision.
+  - Deposits exceeding the account balance will fail.
+
+  You can only perform this function if you verified the input of the user.`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(input: string): Promise<string> {
+    try {
+      const parsedInput = JSON.parse(input);
+
+      // Validate name
+      if (!parsedInput.name) {
+        throw new Error("Name is required");
+      }
+
+      // Validate amount
+      if (!parsedInput.amount) {
+        throw new Error("Amount is required");
+      }
+
+      const amount = parseFloat(parsedInput.amount);
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error("Amount must be a positive number");
+      }
+
+      // Call withdraw function
+      const signature = await this.solanaKit.withdrawFromPriceLocker(
+        parsedInput.name,
+        amount,
+      );
+
+      // Success response
+      return JSON.stringify({
+        status: "success",
+        signature,
+        locker: parsedInput.name,
+        amount,
+        message: `Successfully withdrawn ${amount} tokens from the locker '${parsedInput.name}'. You can view the transaction on Solscan: https://solscan.io/tx/${signature}`,
+      });
+    } catch (error: any) {
+      // Error response
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
+export class SolanaTimeLockPriceLockerTool extends Tool {
+  name = "solana_time_lock_funds_from_price_locker";
+  description = `Time lock tokens in a price locker. Provide the locker name, amount to lock, and lock duration (in seconds).
+    ### Inputs
+    - **name**: (string, required) - Name of the price locker.
+    - **amount**: (number, required) - Amount to lock in the token's unit (e.g., SOL).
+    - **time**: (number, required) - Lock duration in seconds.
+
+    ### Example Input
+    {
+      "name": "myLocker",
+      "amount": 0.2,
+      "time": 3600
+    }
+
+    ### Notes
+    - Ensure the locker name matches an existing locker.
+    - **amount**: Specify the token amount in its unit (e.g., SOL).
+    - **time**: Provide the lock duration in seconds (e.g., 3600 for 1 hour).
+    
+    You can only perform this functions if you verified the input of the user.`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(input: string): Promise<string> {
+    try {
+      const parsedInput = JSON.parse(input);
+
+      // Validate inputs
+      if (!parsedInput.name) {
+        throw new Error("Name is required");
+      }
+
+      if (!parsedInput.amount) {
+        throw new Error("Amount is required");
+      }
+
+      if (!parsedInput.time) {
+        throw new Error("Time is required");
+      }
+
+      const amount = parseFloat(parsedInput.amount);
+      const time = parseInt(parsedInput.time);
+
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error("Amount must be a positive number");
+      }
+
+      if (isNaN(time) || time <= 0) {
+        throw new Error("Time must be a positive number");
+      }
+
+      // Execute time lock
+      const signature = await this.solanaKit.timeLockInPriceLocker(
+        parsedInput.name,
+        amount,
+        time,
+      );
+
+      // Success response
+      return JSON.stringify({
+        status: "success",
+        signature,
+        locker: parsedInput.name,
+        amount,
+        time,
+        message: `Successfully time locked ${amount} SOL for ${time} seconds in the locker '${parsedInput.name}'. View the transaction on Solscan: https://solscan.io/tx/${signature}`,
+      });
+    } catch (error: any) {
+      // Error response
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
+export class SolanaTimeUnlockPriceLockerTool extends Tool {
+  name = "solana_time_unlock_funds_from_price_locker";
+  description = `Unlock time-locked tokens inside a price locker. Provide the locker name and the index of the lock.
+    ### **Input Format**
+    JSON string with:
+    - **name**: (string, required) - Name of the price locker.
+    - **index**: (number, required) - Index of the lock inside the price locker.
+
+    ### **Example Input**
+    {
+      "name": "myLocker",
+      "index": 0
+    }
+
+    ### **Notes**
+    - **name**: The price locker name where tokens will be unlocked.
+    - **index**: The lock index (e.g., 0, 1).`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(input: string): Promise<string> {
+    try {
+      const parsedInput = JSON.parse(input);
+
+      if (!parsedInput.name) {
+        throw new Error("Name is required");
+      }
+
+      if (parsedInput.index === undefined || parsedInput.index === null) {
+        throw new Error("Index is required");
+      }
+
+      const signature = await this.solanaKit.timeUnlockInPriceLocker(
+        parsedInput.name,
+        Number(parsedInput.index),
+      );
+
+      return JSON.stringify({
+        status: "success",
+        signature,
+        locker: parsedInput.name,
+        index: parsedInput.index,
+        message: `Successfully unlocked tokens from locker '${parsedInput.name}' at lock index ${parsedInput.index}. You can view the transaction on Solscan: https://solscan.io/tx/${signature}`,
+      });
+    } catch (error: any) {
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
+export class SolanaPriceLockPriceLockerTool extends Tool {
+  name = "solana_price_lock_funds_from_price_locker";
+  description = `Lock tokens in a price locker with a specific strike price. Provide the locker name, amount to lock, and the strike price in USD.
+
+  ### Inputs
+  - **name**: (string, required) - Name of the price locker.
+  - **amount**: (number, required) - Amount to lock in the token's unit (e.g., SOL).
+  - **strikePrice**: (number, required) - Strike price in USD.
+
+  ### Example Input
+  {
+    "name": "myLocker",
+    "amount": 0.2,
+    "strikePrice": 180
+  }
+
+  ### Notes
+  - Ensure the locker name matches an existing locker.
+  - **amount**: Specify the token amount in its unit (e.g., SOL).
+  - **strikePrice**: Specify the strike price in USD (e.g., 180 for $180).
+  - You can only perform this function if you have verified the user's input.`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(input: string): Promise<string> {
+    try {
+      const parsedInput = JSON.parse(input);
+
+      // Validate inputs
+      if (!parsedInput.name) {
+        throw new Error("Name is required");
+      }
+
+      if (!parsedInput.amount) {
+        throw new Error("Amount is required");
+      }
+
+      if (!parsedInput.strikePrice) {
+        throw new Error("Strike price is required");
+      }
+
+      const amount = parseFloat(parsedInput.amount);
+      const strikePrice = parseFloat(parsedInput.strikePrice);
+
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error("Amount must be a positive number");
+      }
+
+      if (isNaN(strikePrice) || strikePrice <= 0) {
+        throw new Error("Strike price must be a positive number");
+      }
+
+      // Execute price lock
+      const signature = await this.solanaKit.priceLockInPriceLocker(
+        parsedInput.name,
+        amount,
+        strikePrice,
+      );
+
+      // Success response
+      return JSON.stringify({
+        status: "success",
+        signature,
+        locker: parsedInput.name,
+        amount,
+        strikePrice,
+        message: `Successfully locked ${amount} SOL at a strike price of $${strikePrice} in the locker '${parsedInput.name}'. View the transaction on Solscan: https://solscan.io/tx/${signature}`,
+      });
+    } catch (error: any) {
+      // Error response
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
+export class SolanaPriceUnlockPriceLockerTool extends Tool {
+  name = "solana_price_unlock_funds_from_price_locker";
+  description = `Unlock price-locked tokens inside a price locker. Provide the locker name and the index of the lock.
+    ### **Input Format**
+    JSON string with:
+    - **name**: (string, required) - Name of the price locker.
+    - **index**: (number, required) - Index of the lock inside the price locker.
+
+    ### **Example Input**
+    {
+      "name": "myLocker",
+      "index": 0
+    }
+
+    ### **Notes**
+    - **name**: The price locker name where tokens will be unlocked.
+    - **index**: The lock index (e.g., 0, 1).`;
+
+  constructor(private solanaKit: SolanaAgentKit) {
+    super();
+  }
+
+  protected async _call(input: string): Promise<string> {
+    try {
+      const parsedInput = JSON.parse(input);
+
+      if (!parsedInput.name) {
+        throw new Error("Name is required");
+      }
+
+      if (parsedInput.index === undefined || parsedInput.index === null) {
+        throw new Error("Index is required");
+      }
+
+      const signature = await this.solanaKit.priceUnlockInPriceLocker(
+        parsedInput.name,
+        Number(parsedInput.index),
+      );
+
+      return JSON.stringify({
+        status: "success",
+        signature,
+        locker: parsedInput.name,
+        index: parsedInput.index,
+        message: `Successfully unlocked tokens from price locker '${parsedInput.name}' at lock index ${parsedInput.index}. You can view the transaction on Solscan: https://solscan.io/tx/${signature}`,
+      });
+    } catch (error: any) {
+      return JSON.stringify({
+        status: "error",
+        message: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  }
+}
+
 export function createSolanaTools(solanaKit: SolanaAgentKit) {
   return [
     new SolanaBalanceTool(solanaKit),
@@ -2755,5 +3290,13 @@ export function createSolanaTools(solanaKit: SolanaAgentKit) {
     new SolanaApproveProposal2by2Multisig(solanaKit),
     new SolanaRejectProposal2by2Multisig(solanaKit),
     new SolanaExecuteProposal2by2Multisig(solanaKit),
+    new SolanaCreatePriceLockerTool(solanaKit),
+    new SolanaGetPriceLockerTool(solanaKit),
+    new SolanaDepositPriceLockerTool(solanaKit),
+    new SolanaWithdrawPriceLockerTool(solanaKit),
+    new SolanaTimeLockPriceLockerTool(solanaKit),
+    new SolanaTimeUnlockPriceLockerTool(solanaKit),
+    new SolanaPriceLockPriceLockerTool(solanaKit),
+    new SolanaPriceUnlockPriceLockerTool(solanaKit),
   ];
 }

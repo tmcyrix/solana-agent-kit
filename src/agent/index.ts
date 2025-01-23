@@ -92,6 +92,16 @@ import { create_proposal } from "../tools/squads_multisig/create_proposal";
 import { approve_proposal } from "../tools/squads_multisig/approve_proposal";
 import { execute_transaction } from "../tools/squads_multisig/execute_proposal";
 import { reject_proposal } from "../tools/squads_multisig/reject_proposal";
+import {
+  createPriceLocker,
+  depositToPriceLocker,
+  withdrawFromPriceLocker,
+  getPriceLockerList,
+  timeLockInPriceLocker,
+  timeUnlockInPriceLocker,
+  priceLockInPriceLocker,
+  priceUnlockInPriceLocker,
+} from "../tools/price_locker";
 
 /**
  * Main class for interacting with Solana blockchain
@@ -654,5 +664,45 @@ export class SolanaAgentKit {
     transactionIndex?: number | bigint,
   ): Promise<string> {
     return execute_transaction(this, transactionIndex);
+  }
+
+  async getPriceLockerList() {
+    return getPriceLockerList(this);
+  }
+
+  async createPriceLocker(lockerName: string, tokenMint: string) {
+    return createPriceLocker(this, lockerName, tokenMint);
+  }
+
+  async depositToPriceLocker(lockerName: string, amount: number) {
+    return depositToPriceLocker(this, lockerName, amount);
+  }
+
+  async withdrawFromPriceLocker(lockerName: string, amount: number) {
+    return withdrawFromPriceLocker(this, lockerName, amount);
+  }
+
+  async timeLockInPriceLocker(
+    lockerName: string,
+    amount: number,
+    timeInSeconds: number,
+  ) {
+    return timeLockInPriceLocker(this, lockerName, amount, timeInSeconds);
+  }
+
+  async timeUnlockInPriceLocker(lockerName: string, index: number) {
+    return timeUnlockInPriceLocker(this, lockerName, index);
+  }
+
+  async priceLockInPriceLocker(
+    lockerName: string,
+    amount: number,
+    strikePrice: number,
+  ) {
+    return priceLockInPriceLocker(this, lockerName, amount, strikePrice);
+  }
+
+  async priceUnlockInPriceLocker(lockerName: string, index: number) {
+    return priceUnlockInPriceLocker(this, lockerName, index);
   }
 }

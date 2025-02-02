@@ -2822,21 +2822,23 @@ export class SolanaGetPriceLockerTool extends Tool {
 
 export class SolanaDepositPriceLockerTool extends Tool {
   name = "solana_deposit_price_locker";
-  description = `Deposit SPL tokens into a price locker. Provide the locker name and amount. 
+  description = `Deposit SPL tokens into a price locker using its name and deposit amount.
 
     ### Inputs
-    - **name**: (string, required) Name of the price locker.
-    - **amount**: (number, required) Amount to deposit (positive value).
+    - **locker_name**: (string, required) The exact name of your price locker.
+    - **amount**: (number, required) The amount of tokens to deposit.
 
-    ### Example Input
-    For SPL token: {"name": "myLocker", "amount": 100}
+    ### Example Inputs
+    - If you have a locker named **"usdc-locker"**, and want to deposit **5 USDC tokens**, input:
+      \`{"locker_name": "usdc-locker", "amount": 5}\`
 
-    ### Notes
-    - The locker must exist.
-    - Amount must match the token's decimal precision.
-    - Deposits exceeding the account balance will fail.
-
-    You can only perform this function if you verified the input of the user.`;
+    ### Important Notes
+    - The **locker name** must be provided **exactly** as created (e.g., "usdc-locker", not just "usdc").
+    - **The deposit amount is not a token name**, but a numerical value (e.g., 5 USDC, not "usdc 5").
+    - This tool does **not require a token mint address**; it only needs the **locker name** and **amount**.
+    - Ensure that you have sufficient balance for the deposit.
+    
+    Before executing, verify that the user has confirmed the deposit details to avoid mistakes.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -2847,7 +2849,10 @@ export class SolanaDepositPriceLockerTool extends Tool {
       const parsedInput = JSON.parse(input);
 
       // Validate locker name
-      if (!parsedInput.name || typeof parsedInput.name !== "string") {
+      if (
+        !parsedInput.locker_name ||
+        typeof parsedInput.locker_name !== "string"
+      ) {
         throw new Error("Locker name is required and must be a string.");
       }
 
@@ -2859,7 +2864,7 @@ export class SolanaDepositPriceLockerTool extends Tool {
 
       // Execute the deposit
       const signature = await this.solanaKit.depositToPriceLocker(
-        parsedInput.name,
+        parsedInput.locker_name,
         amount,
       );
 
@@ -2867,9 +2872,9 @@ export class SolanaDepositPriceLockerTool extends Tool {
       return JSON.stringify({
         status: "success",
         signature,
-        locker: parsedInput.name,
+        locker: parsedInput.locker_name,
         amount,
-        message: `Successfully deposited ${amount} tokens into the locker '${parsedInput.name}'. You can view the transaction on Solscan: https://solscan.io/tx/${signature}`,
+        message: `✅ Successfully deposited **${amount} tokens** into **'${parsedInput.locker_name}'**.\n\n🔗 [View transaction on Solscan](https://solscan.io/tx/${signature})`,
       });
     } catch (error: any) {
       // Error response

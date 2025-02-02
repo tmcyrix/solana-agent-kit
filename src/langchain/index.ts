@@ -2970,9 +2970,7 @@ export class SolanaTimeLockPriceLockerTool extends Tool {
     ### Notes
     - Ensure the locker name matches an existing locker.
     - **amount**: Specify the token amount in its unit (e.g., SOL).
-    - **time**: Provide the lock duration in seconds (e.g., 3600 for 1 hour).
-    
-    You can only perform this functions if you verified the input of the user.`;
+    - **time**: Provide the lock duration in seconds (e.g., 3600 for 1 hour).`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -3108,8 +3106,7 @@ export class SolanaPriceLockPriceLockerTool extends Tool {
   ### Notes
   - Ensure the locker name matches an existing locker.
   - **amount**: Specify the token amount in its unit (e.g., SOL).
-  - **strikePrice**: Specify the strike price in USD (e.g., 180 for $180).
-  - You can only perform this function if you have verified the user's input.`;
+  - **strikePrice**: Specify the strike price in USD (e.g., 180 for $180).`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();

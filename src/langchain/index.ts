@@ -2836,9 +2836,7 @@ export class SolanaDepositPriceLockerTool extends Tool {
     - The **locker name** must be provided **exactly** as created (e.g., "usdc-locker", not just "usdc").
     - **The deposit amount is not a token name**, but a numerical value (e.g., 5 USDC, not "usdc 5").
     - This tool does **not require a token mint address**; it only needs the **locker name** and **amount**.
-    - Ensure that you have sufficient balance for the deposit.
-    
-    Before executing, verify that the user has confirmed the deposit details to avoid mistakes.`;
+    - Ensure that you have sufficient balance for the deposit.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();

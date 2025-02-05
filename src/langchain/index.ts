@@ -2691,13 +2691,15 @@ export class SolanaExecuteProposal2by2Multisig extends Tool {
 
 export class SolanaCreatePriceLockerTool extends Tool {
   name = "solana_create_price_locker";
-  description = `Create a new Price Locker for the agent based on a name and a required token mint. 
-  The locker is only valid for SPL tokens such as CRAB, BONK etc. A token mint must be specified.
+  description = `Create a new Price Locker for the agent based on a name and a required token mint. A name and token mint must be specified by the user.
   After successfully creating a price locker, prompt the user to deposit funds into the newly created price locker.
 
   Inputs (JSON string):
   - name: string (required) - Name of the locker.
-  - tokenMint: string (required) - Mint of the SPL token.`;
+  - tokenMint: string (required) - Token mint.
+  
+  ### **Notes**
+  You can only perform this function if you verified the input of the user.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -2719,9 +2721,6 @@ export class SolanaCreatePriceLockerTool extends Tool {
 
       const tokenMint = parsedInput.tokenMint;
       const tokenType = `SPL Token (${parsedInput.tokenMint})`;
-
-      console.log("Locker name:", parsedInput.name);
-      console.log("Token mint:", tokenMint);
 
       // Call the createPriceLocker function
       const signature = await this.solanaKit.createPriceLocker(
@@ -2761,7 +2760,8 @@ export class SolanaGetPriceLockerTool extends Tool {
   ### **Notes**
   - Locks with "locked" as false are already unlocked and not shown.
   - Use lock indices to unlock tokens or perform actions.
-  - View details to manage and track price lockers effectively.`;
+  - View details to manage and track price lockers effectively.
+  - You can only perform this function if you verified the input of the user.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -2836,7 +2836,8 @@ export class SolanaDepositPriceLockerTool extends Tool {
     - The **locker name** must be provided **exactly** as created (e.g., "usdc-locker", not just "usdc").
     - **The deposit amount is not a token name**, but a numerical value (e.g., 5 USDC, not "usdc 5").
     - This tool does **not require a token mint address**; it only needs the **locker name** and **amount**.
-    - Ensure that you have sufficient balance for the deposit.`;
+    - Ensure that you have sufficient balance for the deposit.
+    - You can only perform this function if you verified the input of the user.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -2970,7 +2971,8 @@ export class SolanaTimeLockPriceLockerTool extends Tool {
     ### Notes
     - Ensure the locker name matches an existing locker.
     - **amount**: Specify the token amount in its unit (e.g., SOL).
-    - **time**: Provide the lock duration in seconds (e.g., 3600 for 1 hour).`;
+    - **time**: Provide the lock duration in seconds (e.g., 3600 for 1 hour).
+    You can only perform this function if you verified the input of the user.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -3047,7 +3049,8 @@ export class SolanaTimeUnlockPriceLockerTool extends Tool {
 
     ### **Notes**
     - **name**: The price locker name where tokens will be unlocked.
-    - **index**: The lock index (e.g., 0, 1).`;
+    - **index**: The lock index (e.g., 0, 1).
+    You can only perform this function if you verified the input of the user.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -3106,7 +3109,8 @@ export class SolanaPriceLockPriceLockerTool extends Tool {
   ### Notes
   - Ensure the locker name matches an existing locker.
   - **amount**: Specify the token amount in its unit (e.g., SOL).
-  - **strikePrice**: Specify the strike price in USD (e.g., 180 for $180).`;
+  - **strikePrice**: Specify the strike price in USD (e.g., 180 for $180).
+  You can only perform this function if you verified the input of the user.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();
@@ -3183,7 +3187,8 @@ export class SolanaPriceUnlockPriceLockerTool extends Tool {
 
     ### **Notes**
     - **name**: The price locker name where tokens will be unlocked.
-    - **index**: The lock index (e.g., 0, 1).`;
+    - **index**: The lock index (e.g., 0, 1).
+    You can only perform this function if you verified the input of the user.`;
 
   constructor(private solanaKit: SolanaAgentKit) {
     super();

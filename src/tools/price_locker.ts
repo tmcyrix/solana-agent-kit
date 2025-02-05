@@ -40,13 +40,8 @@ export async function depositToPriceLocker(
   lockerName: string,
   amount: number,
 ): Promise<string> {
-  try {
-    const sdk = initializePriceLockerSDK(agent);
-    return await sdk.depositFunds(lockerName, amount);
-  } catch (error: any) {
-    console.error("Full error details:", error);
-    throw error;
-  }
+  const sdk = initializePriceLockerSDK(agent);
+  return await sdk.depositFunds(lockerName, amount);
 }
 
 export async function withdrawFromPriceLocker(

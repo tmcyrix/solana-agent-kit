@@ -2782,6 +2782,7 @@ export class SolanaGetPriceLockerTool extends Tool {
           lockerName: data.name,
           publicKey: publicKey.toBase58(),
           tokenMint: data.tokenMint.toBase58(),
+          balance: data.balance,
           unlockableLocks,
           totalLocks: data.locks.length,
         };
@@ -2794,11 +2795,13 @@ export class SolanaGetPriceLockerTool extends Tool {
             `Locker: ${locker.lockerName}\n` +
             `Public Key: ${locker.publicKey}\n` +
             `Token Mint: ${locker.tokenMint}\n` +
+            `Available Balance: ${locker.balance}\n` +
             `Total Locks: ${locker.totalLocks}\n` +
-            `Unlockable Locks: ${
+            `Available Locks: ${
               locker.unlockableLocks.length > 0
                 ? locker.unlockableLocks.map(
-                    (lock) => `Index ${lock.index}, Amount: ${lock.amount}`,
+                    (lock) =>
+                      `Index ${lock.index}, Amount: ${lock.amount}, Variant: ${lock.variant}`,
                   )
                 : "None"
             }\n`,

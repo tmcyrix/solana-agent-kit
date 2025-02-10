@@ -3,7 +3,7 @@ import PriceLockerSDK, { Locker } from "@pricelocker/sdk";
 import { PublicKey } from "@solana/web3.js";
 
 function initializePriceLockerSDK(agent: SolanaAgentKit): PriceLockerSDK {
-  return new PriceLockerSDK(agent.wallet, agent.connection);
+  return new PriceLockerSDK(agent.wallet, agent.connection, "Medium");
 }
 
 export async function getPriceLockerList(agent: SolanaAgentKit): Promise<
